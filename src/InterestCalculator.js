@@ -4,57 +4,59 @@ import dayjs from "dayjs";
 const InterestCalculator = () => {
 	const [principal, setPrincipal] = useState(500000);
 	const [interestRate, setInterestRate] = useState(10);
-	const [startDate, setStartDate] = useState("2022-06-26");
-	const [payments, setPayments] = useState([
+	const [startDate] = useState("2022-06-26"); // Removed unused setStartDate
+	const [payments] = useState([
 		{ date: "2022-11-04", amount: 3466.67 },
 		{ date: "2022-07-22", amount: 4166.67 },
 		{ date: "2022-08-22", amount: 4166.67 },
 		{ date: "2022-09-22", amount: 4166.67 },
 		{ date: "2022-11-22", amount: 701.0 },
-	]);
+	]); // Removed unused setPayments
 
 	const [balance, setBalance] = useState(principal);
 	const [breakdown, setBreakdown] = useState([]);
+	const [totalInterestDue, setTotalInterestDue] = useState(0);
+	const [totalPaid, setTotalPaid] = useState(0);
 
 	useEffect(() => {
+		const calculateInterest = () => {
+			let currentBalance = principal;
+			let monthlyInterestRate = interestRate / 100 / 12;
+			let currentDate = dayjs(startDate);
+			let endDate = dayjs();
+			let schedule = [];
+			let accumulatedInterest = 0;
+			let paidAmount = 0;
+
+			while (currentDate.isBefore(endDate, "month")) {
+				let interestDue = currentBalance * monthlyInterestRate;
+				accumulatedInterest += interestDue;
+				currentBalance += interestDue;
+
+				let searchDate = dayjs(currentDate).startOf("month"); // Avoid unsafe reference
+				let payment = payments.find((p) => dayjs(p.date).isSame(searchDate, "month"));
+				let paymentAmount = payment ? payment.amount : 0;
+				paidAmount += paymentAmount;
+				currentBalance -= paymentAmount;
+
+				schedule.push({
+					date: currentDate.format("MMM YYYY"),
+					interestDue: interestDue.toFixed(2),
+					paymentMade: paymentAmount.toFixed(2),
+					balance: currentBalance.toFixed(2),
+				});
+
+				currentDate = currentDate.add(1, "month");
+			}
+
+			setBreakdown(schedule);
+			setBalance(currentBalance);
+			setTotalInterestDue(accumulatedInterest);
+			setTotalPaid(paidAmount);
+		};
+
 		calculateInterest();
-	}, [principal, interestRate, startDate, payments]);
-
-	const calculateInterest = () => {
-		let currentBalance = principal;
-		let monthlyInterestRate = interestRate / 100 / 12;
-		let currentDate = dayjs(startDate);
-		let endDate = dayjs();
-		let schedule = [];
-		let accumulatedInterest = 0;
-		let totalPaid = 0;
-
-		while (currentDate.isBefore(endDate, "month")) {
-			let interestDue = currentBalance * monthlyInterestRate;
-			accumulatedInterest += interestDue;
-			currentBalance += interestDue;
-
-			let payment = payments.find((p) =>
-				dayjs(p.date).isSame(currentDate, "month")
-			);
-
-			let paymentAmount = payment ? payment.amount : 0;
-			totalPaid += paymentAmount;
-			currentBalance -= paymentAmount;
-
-			schedule.push({
-				date: currentDate.format("MMM YYYY"),
-				interestDue: interestDue.toFixed(2),
-				paymentMade: paymentAmount.toFixed(2),
-				balance: currentBalance.toFixed(2),
-			});
-
-			currentDate = currentDate.add(1, "month");
-		}
-
-		setBreakdown(schedule);
-		setBalance(currentBalance);
-	};
+	}, [principal, interestRate, startDate, payments]); // Fixed dependency issue
 
 	return (
 		<div className="p-5 max-w-3xl mx-auto bg-white shadow rounded-lg">
@@ -102,6 +104,8 @@ const InterestCalculator = () => {
 			</table>
 
 			<h3 className="mt-4 text-lg font-bold">Total Balance Due: ${balance.toFixed(2)}</h3>
+			<h4 className="mt-2 text-md">Total Interest Accrued: ${totalInterestDue.toFixed(2)}</h4>
+			<h4 className="mt-2 text-md">Total Payments Made: ${totalPaid.toFixed(2)}</h4>
 		</div>
 	);
 };
